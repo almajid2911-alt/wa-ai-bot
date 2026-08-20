@@ -129,7 +129,9 @@ export async function connectToWhatsApp() {
     },
     getMessage,
     syncFullHistory: false,
+    shouldSyncHistoryMessage: () => false,
     markOnlineOnConnect: true,
+    defaultQueryTimeoutMs: undefined,
     generateHighQualityLinkPreview: true,
     browser: ['Ubuntu', 'Chrome', '22.04.4']
   });
