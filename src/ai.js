@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getCachedKnowledge } from './sheets.js';
 import { matchLocalIntent } from './localEngine.js';
+import { getRelevantLearnedContext } from './learning.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,10 +29,11 @@ export function resetAIConversation(remoteJid) {
   return false;
 }
 
-function buildSystemInstruction(productContext = 'indihome') {
+function buildSystemInstruction(productContext = 'indihome', userMessage = '') {
   const botName = process.env.BOT_NAME || 'Sarah';
   const companyName = process.env.COMPANY_NAME || 'IndiHome Telkomsel';
   const dynamicKnowledge = getCachedKnowledge();
+  const learnedContext = getRelevantLearnedContext(userMessage, productContext);
 
   return `
 Kamu adalah "${botName}", Customer Relationship & Sales Consultant resmi profesional dari ${companyName} & Telkom Indonesia.
@@ -41,6 +43,7 @@ KNOWLEDGE BASE & DAFTAR PRODUK RESMI:
 ---
 ${staticKnowledge}
 ${dynamicKnowledge}
+${learnedContext}
 ---
 
 ATURAN ALUR PENDAFTARAN & SOP SALES:
@@ -234,7 +237,7 @@ export async function generateAIReply(remoteJid, userMessage, senderName = 'Kak'
 
   // 6. GENERATIVE AI ENGINE (OPENAI GPT-4O-MINI OR GOOGLE GEMINI)
   console.log(`🤖 Mengaktifkan Full AI Intelligence untuk pesan kompleks: "${userMessage}"`);
-  const systemInstruction = buildSystemInstruction(currentProd);
+  const systemInstruction = buildSystemInstruction(currentProd, userMessage);
 
   // Maintain History
   let history = conversationHistory.get(remoteJid) || [];

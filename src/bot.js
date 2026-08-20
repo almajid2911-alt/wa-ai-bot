@@ -17,6 +17,7 @@ import { appendLeadToSheet, logUnansweredQuestion, refreshDynamicKnowledgeBackgr
 import { sendTelegramNotification, sendTelegramPhoto } from './telegram.js';
 import { isUserPaused, pauseBotForUser, resumeBotForUser } from './takeover.js';
 import { trackUserConsultation, markUserRegistered, startFollowUpScheduler } from './followup.js';
+import { learnNewQA } from './learning.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,6 +64,7 @@ const pendingLeadBuffer = new Map();
 const userSavedLocations = new Map();
 const userProductContext = new Map();
 const userRegistrationStage = new Map(); // 'inquiry' | 'awaiting_standby' | 'options_offered' | 'done'
+const lastCustomerQuestionMap = new Map(); // remoteJid -> last question string
 
 // Anti-Spam & Rate Limiter Store
 const userRateLimiter = new Map(); // remoteJid -> { timestamps: number[], isWarned: boolean, cooldownUntil: number }
@@ -314,8 +316,21 @@ export async function connectToWhatsApp() {
             resumeBotForUser(remoteJid);
             userRegistrationStage.delete(remoteJid);
             await sock.sendMessage(remoteJid, { text: '▶️ [Sistem]: AI Bot diaktifkan kembali untuk melayani percakapan.' });
+          } else if (incomingText && incomingText.length > 5 && !incomingText.startsWith('#')) {
+            // 🧠 AUTO-LEARNING: Bot belajar otomatis dari jawaban manual yang diketik oleh Admin
+            const lastQ = lastCustomerQuestionMap.get(remoteJid);
+            const currentProd = userProductContext.get(remoteJid) || 'indihome';
+            if (lastQ && lastQ.length > 5) {
+              learnNewQA(lastQ, incomingText, currentProd);
+              console.log(`🧠 [Auto-Learning]: Bot berhasil mempelajari jawaban Admin untuk: "${lastQ.substring(0, 30)}..."!`);
+            }
           }
           continue;
+        }
+
+        // Simpan pertanyaan customer untuk dipelajari
+        if (incomingText && incomingText.length > 5 && !incomingText.startsWith('#')) {
+          lastCustomerQuestionMap.set(remoteJid, incomingText);
         }
 
         // Cek jika nomor ini sedang dalam mode Human Takeover
