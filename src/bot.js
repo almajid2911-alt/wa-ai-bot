@@ -3,7 +3,8 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
-  downloadMediaMessage
+  downloadMediaMessage,
+  Browsers
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import fs from 'fs';
@@ -167,7 +168,7 @@ export async function connectToWhatsApp() {
     markOnlineOnConnect: true,
     defaultQueryTimeoutMs: undefined,
     generateHighQualityLinkPreview: true,
-    browser: ['Ubuntu', 'Chrome', '22.04.4']
+    browser: Browsers.macOS('Desktop')
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -478,8 +479,7 @@ export async function connectToWhatsApp() {
           await logUnansweredQuestion(senderName, senderPhone, incomingText);
         }
 
-        // 6. KIRIM BALASAN UTAMA
-        const quoteOption = (msg?.message && Object.keys(msg.message).length > 0 && !remoteJid.includes('@lid')) ? { quoted: msg } : {};
+        // 6. KIRIM BALASAN UTAMA (Direct clean message for 100% Meta Business E2E compatibility)
         let sentMsg = null;
 
         if (attachImage) {
@@ -489,12 +489,12 @@ export async function connectToWhatsApp() {
             sentMsg = await sock.sendMessage(remoteJid, {
               image: imgBuf,
               caption: replyText
-            }, quoteOption);
+            });
           } else {
-            sentMsg = await sock.sendMessage(remoteJid, { text: replyText }, quoteOption);
+            sentMsg = await sock.sendMessage(remoteJid, { text: replyText });
           }
         } else {
-          sentMsg = await sock.sendMessage(remoteJid, { text: replyText }, quoteOption);
+          sentMsg = await sock.sendMessage(remoteJid, { text: replyText });
         }
 
         if (sentMsg?.key?.id && sentMsg?.message) {
