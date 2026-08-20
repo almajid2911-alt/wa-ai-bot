@@ -174,9 +174,13 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
     };
   }
   const hasSpecificApp = (
-    text.includes('netflix') || text.includes('capcut') || text.includes('spotify') ||
-    text.includes('chatgpt') || text.includes('chat gpt') || text.includes('disney') ||
-    text.includes('canva') || text.includes('prime') || text.includes('viu') ||
+    text.includes('netflix') || text.includes('netflik') || text.includes('netplik') || text.includes('1p1u') || text.includes('1p2u') ||
+    text.includes('capcut') || text.includes('cap cut') || text.includes('kapkut') ||
+    text.includes('spotify') || text.includes('spotipy') || text.includes('spotifi') ||
+    text.includes('chatgpt') || text.includes('chat gpt') ||
+    text.includes('disney') || text.includes('disni') ||
+    text.includes('canva') || text.includes('kanva') ||
+    text.includes('prime') || text.includes('viu') || text.includes('viuu') ||
     text.includes('drama') || text.includes('netshort') || text.includes('dramabox')
   );
 
