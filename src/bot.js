@@ -91,6 +91,16 @@ function getOrCreateBuffer(remoteJid, senderName, senderPhone) {
   return buf;
 }
 
+// In-memory message store for E2EE Signal retry key fulfillment (Anti Waiting for Message)
+const messageStore = new Map();
+
+async function getMessage(key) {
+  if (key?.id && messageStore.has(key.id)) {
+    return messageStore.get(key.id);
+  }
+  return undefined;
+}
+
 export async function connectToWhatsApp() {
   const authDir = path.resolve(process.env.AUTH_DIR || 'auth_session');
   if (!fs.existsSync(authDir)) {
@@ -117,8 +127,11 @@ export async function connectToWhatsApp() {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, logger)
     },
+    getMessage,
+    syncFullHistory: false,
+    markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
-    browser: ['IndiHome CS AI', 'Chrome', '1.0.0']
+    browser: ['Ubuntu', 'Chrome', '22.04.4']
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -433,26 +446,34 @@ export async function connectToWhatsApp() {
 
         // 6. KIRIM BALASAN UTAMA
         const quoteOption = (msg?.message && Object.keys(msg.message).length > 0 && !remoteJid.includes('@lid')) ? { quoted: msg } : {};
+        let sentMsg = null;
 
         if (attachImage) {
           const imagePath = path.resolve(__dirname, `../assets/brosur/${attachImage}`);
           if (fs.existsSync(imagePath)) {
             const imgBuf = fs.readFileSync(imagePath);
-            await sock.sendMessage(remoteJid, {
+            sentMsg = await sock.sendMessage(remoteJid, {
               image: imgBuf,
               caption: replyText
             }, quoteOption);
           } else {
-            await sock.sendMessage(remoteJid, { text: replyText }, quoteOption);
+            sentMsg = await sock.sendMessage(remoteJid, { text: replyText }, quoteOption);
           }
         } else {
-          await sock.sendMessage(remoteJid, { text: replyText }, quoteOption);
+          sentMsg = await sock.sendMessage(remoteJid, { text: replyText }, quoteOption);
+        }
+
+        if (sentMsg?.key?.id && sentMsg?.message) {
+          messageStore.set(sentMsg.key.id, sentMsg.message);
         }
 
         // 7. JIKA ADA FORMAT FORMULIR, KIRIM DALAM CHAT TERPISAH YANG SIAP DI COPY-PASTE
         if (copyFormTemplate) {
           await new Promise(resolve => setTimeout(resolve, 800));
-          await sock.sendMessage(remoteJid, { text: copyFormTemplate });
+          const sentForm = await sock.sendMessage(remoteJid, { text: copyFormTemplate });
+          if (sentForm?.key?.id && sentForm?.message) {
+            messageStore.set(sentForm.key.id, sentForm.message);
+          }
         }
 
       } catch (err) {
