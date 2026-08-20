@@ -115,7 +115,64 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
     }
   }
 
-  // 2. INTENT KHUSUS: PEMESANAN / PILIH APLIKASI PREMIUM SPESIFIK
+  // 1.8 OBJECTION HANDLING: Legalitas & Garansi Akun APK Premium
+  const isAskingApkSafety = (
+    text.includes('aman') || text.includes('legal') || text.includes('resmi') ||
+    text.includes('garansi') || text.includes('banned') || text.includes('ke banned') || text.includes('kena ban')
+  ) && (
+    currentProduct === 'apk_premium' || text.includes('apk') || text.includes('akun') ||
+    text.includes('netflix') || text.includes('capcut') || text.includes('spotify') || text.includes('canva')
+  );
+  if (isAskingApkSafety) {
+    return {
+      replyText: `Hai Kak ${name}! Jangan khawatir yaa, seluruh akun **APK Premium di Yuyun Premium Store 100% Legal, Resmi, dan Bergaransi Penuh** selama masa aktif langganan! 🛡️✨\n\nJika di tengah jalan ada kendala akun atau login, tim admin kami siap membantu reset atau langsung mengganti dengan akun baru seketika 🙏😊\n\nKak ${name} mau order akun aplikasi yang mana nih?`,
+      attachImage: null,
+      copyFormTemplate: null,
+      leadData: null,
+      isConfirmedReady: false,
+      customerChoiceAdmin: false,
+      customerChoiceSelf: false,
+      updatedProduct: 'apk_premium'
+    };
+  }
+
+  // 1.9 OBJECTION HANDLING: Mengapa Harus Kirim Foto KTP
+  const isAskingKtpSafety = (
+    text.includes('kenapa ktp') || text.includes('kenapa harus ktp') || text.includes('foto ktp buat apa') ||
+    text.includes('ktp buat apa') || text.includes('aman gak ktp') || text.includes('aman kah ktp') ||
+    text.includes('wajib ktp') || text.includes('perlu ktp')
+  );
+  if (isAskingKtpSafety) {
+    return {
+      replyText: `Pertanyaan yang sangat bagus, Kak ${name}! 🙏\n\nFoto KTP diperlukan semata-mata untuk **Verifikasi Data Pelanggan Resmi di Sistem Telkomsel/IndiHome** agar jaringan internet terdaftar sah atas nama Kakak dan terhindar dari penyalahgunaan data 🔒🛡️\n\nData Kakak dijamin 100% aman dan hanya digunakan untuk keperluan aktivasi pasang baru IndiHome/IndiBiz saja yaa kak 😊👍`,
+      attachImage: null,
+      copyFormTemplate: null,
+      leadData: null,
+      isConfirmedReady: false,
+      customerChoiceAdmin: false,
+      customerChoiceSelf: false,
+      updatedProduct: currentProduct
+    };
+  }
+
+  // 1.95 CONSULTATIVE UPSELLING: Tanya Rekomendasi Paket / Beda 50 vs 75 Mbps
+  const isAskingRecommendation = (
+    text.includes('rekomendasi') || text.includes('bagusan mana') || text.includes('bagus mana') ||
+    text.includes('50 atau 75') || text.includes('beda 50 dan 75') || text.includes('saran') ||
+    text.includes('pilih yang mana')
+  ) && (currentProduct === 'indihome' || text.includes('indihome') || text.includes('wifi') || text.includes('mbps'));
+  if (isAskingRecommendation) {
+    return {
+      replyText: `Untuk pemakaian di rumah (3–5 HP/Laptop + Smart TV), Sarah **sangat merekomendasikan Paket 75 Mbps (Rp 250.000 / bln)** ya Kak ${name}! ⭐🔥\n\nKenapa? Karena **hanya selisih Rp 20.000 saja dari paket 50 Mbps (Rp 230rb)**, tapi Kakak sudah dapat:\n• Kecepatan internet 50% jauh lebih kencang & anti-buffering saat dipakai rame-rame 🚀\n• Streaming video 4K & YouTube super lancar tanpa jeda 🎬\n• Promo biaya pasang cuma **Rp 99.000 saja**\n\nGimana Kak ${name}, berminat Sarah bantu amankan slot promo untuk Paket 75 Mbps? Boleh kirimkan Shareloc GPS titik rumahnya yaa 📍😊`,
+      attachImage: 'brosur-indihome.jpg',
+      copyFormTemplate: null,
+      leadData: null,
+      isConfirmedReady: false,
+      customerChoiceAdmin: false,
+      customerChoiceSelf: false,
+      updatedProduct: 'indihome'
+    };
+  }
   const hasSpecificApp = (
     text.includes('netflix') || text.includes('capcut') || text.includes('spotify') ||
     text.includes('chatgpt') || text.includes('chat gpt') || text.includes('disney') ||

@@ -364,7 +364,9 @@ export async function connectToWhatsApp() {
           userProductContext.set(remoteJid, aiResult.updatedProduct);
         }
 
-        const humanDelay = Math.floor(Math.random() * 1200) + 1200;
+        // Dynamic Human Typing Delay: Pendek (1.2s) s/d Panjang (3.5s) agar terasa manusiawi
+        const textLen = (replyText || '').length;
+        const humanDelay = Math.min(3500, Math.max(1200, Math.floor(1000 + textLen * 8 + Math.random() * 400)));
         await new Promise(resolve => setTimeout(resolve, humanDelay));
         await sock.sendPresenceUpdate('paused', remoteJid);
 
