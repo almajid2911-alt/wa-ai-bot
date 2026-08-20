@@ -1,3 +1,5 @@
+import { getAppStockStatus, formatAppStockList } from './sheets.js';
+
 // Track user selection stage for multi-tier apps (e.g. CapCut / Netflix Private vs Sharing)
 const userPendingAppTier = new Map(); // remoteJid -> 'capcut' | 'netflix'
 
@@ -318,13 +320,17 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
   }
 
   // 8. INTENT: Tanya Paket / Daftar Harga / Brosur IndiHome / IndiBiz
-  const isAskingPrice = (
-    text.includes('paket') || text.includes('harga') || text.includes('tarif') ||
-    text.includes('brosur') || text.includes('daftar') || text.includes('list') || text.includes('mbps')
-  ) && (
-    text.includes('apa') || text.includes('berapa') || text.includes('nanya') || text.includes('tanya') ||
-    text.includes('ada') || text.includes('info') || text.includes('pilihan') || text.includes('brosur') || text.includes('list')
+  const hasPriceKeyword = (
+    /\bpaket\b/i.test(text) || /\bharga\b/i.test(text) || /\btarif\b/i.test(text) ||
+    /\bbrosur\b/i.test(text) || /\bdaftar harga\b/i.test(text) || /\blist harga\b/i.test(text) ||
+    /\bmbps\b/i.test(text)
   );
+  const hasInquiryContext = (
+    /\bapa\b/i.test(text) || /\bberapa\b/i.test(text) || /\bnanya\b/i.test(text) ||
+    /\btanya\b/i.test(text) || /\bada\b/i.test(text) || /\binfo\b/i.test(text) ||
+    /\bpilihan\b/i.test(text) || /\bbrosur\b/i.test(text)
+  );
+  const isAskingPrice = hasPriceKeyword && hasInquiryContext && !text.includes('pln') && !text.includes('listrik');
 
   if (isAskingPrice) {
     if (currentProduct === 'indibiz' || text.includes('indibiz') || text.includes('kantor') || text.includes('usaha')) {
