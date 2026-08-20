@@ -217,11 +217,13 @@ export async function connectToWhatsApp() {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
 
-        const remoteJid = msg.key.remoteJid;
+    for (const msg of messages) {
+      try {
+        const remoteJid = msg.key?.remoteJid;
         if (!remoteJid) continue;
 
         // 🛑 FILTER KETAT: Abaikan 100% Pesan dari Grup WhatsApp, Komunitas, Saluran (Channel), dan Status Story
-        const isGroup = remoteJid.endsWith('@g.us') || remoteJid.includes('@temp') || Boolean(msg.key.participant);
+        const isGroup = remoteJid.endsWith('@g.us') || remoteJid.includes('@temp') || Boolean(msg.key?.participant);
         const isBroadcast = remoteJid === 'status@broadcast' || remoteJid.endsWith('@broadcast') || remoteJid.endsWith('@newsletter');
         if (isGroup || isBroadcast) continue;
 
