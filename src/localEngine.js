@@ -1,5 +1,5 @@
-// Local Knowledge & Intent Engine untuk merespon percakapan secara presisi dan terisolasi per konteks produk (IndiHome vs IndiBiz vs APK Premium)
-import { getAppStockStatus, formatAppStockList } from './sheets.js';
+// Track user selection stage for multi-tier apps (e.g. CapCut / Netflix Private vs Sharing)
+const userPendingAppTier = new Map(); // remoteJid -> 'capcut' | 'netflix'
 
 export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = '', sessionState = { product: 'indihome', stage: 'initial' }) {
   const text = (userMessage || '').trim().toLowerCase();
@@ -8,6 +8,7 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
 
   // 0. COMMAND KHUSUS KONFIRMASI PEMBAYARAN (#SUDAHBAYAR)
   if (text === '#sudahbayar' || text === '#sudah_bayar' || text === '#sudah-bayar' || text === '#lunas' || text === 'sudah bayar' || text === 'udah bayar') {
+    userPendingAppTier.delete(remoteJid);
     return {
       replyText: `Terima kasih banyak atas konfirmasi pembayarannya, Kak ${name}! 🙏✨\n\nBukti pembayaran Kakak sedang dicek oleh tim admin kami dan pesanan akun premium Kakak segera diproseskan sekarang. Mohon ditunggu sebentar yaa! 😊`,
       attachImage: null,
@@ -19,6 +20,61 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
       isApkPaid: true,
       updatedProduct: 'apk_premium'
     };
+  }
+
+  // 1.5 INTENT: USER MEMILIH TIER (PRIVATE vs SHARING) DARI PERTANYAAN SEBELUMNYA
+  const pendingApp = userPendingAppTier.get(remoteJid);
+  const isChoosingPrivate = (
+    text === 'private' || text === 'private ka' || text === 'private kak' || text === 'yang private' ||
+    text === 'yg private' || text === '1' || text === 'opsi 1' || text === '34' || text === '34rb' ||
+    text === '34.000' || text === '35' || text === '35rb' || text.includes('private') || text.includes('sendiri')
+  );
+  const isChoosingSharing = (
+    text === 'sharing' || text === 'sharing ka' || text === 'sharing kak' || text === 'yang sharing' ||
+    text === 'yg sharing' || text === '2' || text === 'opsi 2' || text === '24' || text === '24rb' ||
+    text === '24.000' || text === '23' || text === '23rb' || text.includes('sharing') || text.includes('bareng')
+  );
+
+  if (pendingApp && (isChoosingPrivate || isChoosingSharing)) {
+    userPendingAppTier.delete(remoteJid);
+    if (pendingApp === 'capcut') {
+      const tierName = isChoosingPrivate ? 'CapCut PRO Private' : 'CapCut PRO Sharing';
+      const tierPrice = isChoosingPrivate ? 'Rp 34.000' : 'Rp 24.000';
+      return {
+        replyText: `Siap dengan senang hati, Kak ${name}! 🎉\n\nPesanan **${tierName}** seharga **${tierPrice}** status stok saat ini: **🟢 READY SIAP PAKAI** ✨\n\nSilakan lakukan pembayaran via scan QRIS resmi berikut:\n*(Foto QRIS terlampir di atas)*\n\nJika sudah melakukan pembayaran, mohon balas ketik: 👉 **#sudahbayar**\n\nSetelah itu tim admin kami akan langsung memproses dan mengirimkan akun premium Kakak yaa! 🙏😊`,
+        attachImage: 'qris-yuyun.png',
+        copyFormTemplate: null,
+        leadData: null,
+        isConfirmedReady: false,
+        customerChoiceAdmin: false,
+        customerChoiceSelf: false,
+        updatedProduct: 'apk_premium'
+      };
+    } else if (pendingApp === 'netflix') {
+      if (isChoosingPrivate) {
+        return {
+          replyText: `Siap dengan senang hati, Kak ${name}! 🎉\n\nPesanan **Netflix 1P1U Private** seharga **Rp 35.000** status stok saat ini: **🟢 READY SIAP PAKAI** ✨\n\nSilakan lakukan pembayaran via scan QRIS resmi berikut:\n*(Foto QRIS terlampir di atas)*\n\nJika sudah melakukan pembayaran, mohon balas ketik: 👉 **#sudahbayar**\n\nSetelah itu tim admin kami akan langsung memproses dan mengirimkan akun premium Kakak yaa! 🙏😊`,
+          attachImage: 'qris-yuyun.png',
+          copyFormTemplate: null,
+          leadData: null,
+          isConfirmedReady: false,
+          customerChoiceAdmin: false,
+          customerChoiceSelf: false,
+          updatedProduct: 'apk_premium'
+        };
+      } else {
+        return {
+          replyText: `Mohon maaf sekali Kak ${name}, untuk **Netflix 1P2U Sharing** saat ini sedang **🔴 KOSONG** 🙏\n\nYang saat ini ready adalah **Netflix 1P1U Private (Rp 35.000)**. Mau Sarah kirimkan QRIS untuk yang Private? 😊✨`,
+          attachImage: null,
+          copyFormTemplate: null,
+          leadData: null,
+          isConfirmedReady: false,
+          customerChoiceAdmin: false,
+          customerChoiceSelf: false,
+          updatedProduct: 'apk_premium'
+        };
+      }
+    }
   }
 
   // 1. INTENT: Lapor Gangguan / Komplain Kerusakan Internet
@@ -74,6 +130,7 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
   if (hasSpecificApp && !isGeneralListQuestion) {
     // A. JIKA MEMILIH CAPCUT TAPI BELUM MENENTUKAN PRIVATE / SHARING
     if (text.includes('capcut') && !text.includes('private') && !text.includes('sharing') && !text.includes('34') && !text.includes('24')) {
+      userPendingAppTier.set(remoteJid, 'capcut');
       return {
         replyText: `Siap Kak ${name}! Untuk **CapCut PRO**, kami menyediakan 2 tipe pilihan: 🎉\n\n1️⃣ **Private : Rp 34.000 / bln** (🟢 *Ready* - 1 Akun Khusus Kakak Sendiri)\n2️⃣ **Sharing : Rp 24.000 / bln** (🟢 *Ready* - Akun Bersama Hemat)\n\nKak ${name} mau ambil yang **Private (34rb)** atau **Sharing (24rb)**? Boleh infokan agar langsung Sarah kirimkan QRIS pembayarannya yaa 😊✨`,
         attachImage: null,
@@ -88,6 +145,7 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
 
     // B. JIKA MEMILIH NETFLIX TAPI BELUM MENENTUKAN PRIVATE / SHARING
     if (text.includes('netflix') && !text.includes('private') && !text.includes('sharing') && !text.includes('1p1u') && !text.includes('1p2u') && !text.includes('35') && !text.includes('23')) {
+      userPendingAppTier.set(remoteJid, 'netflix');
       return {
         replyText: `Siap Kak ${name}! Untuk **Netflix Premium**, kami menyediakan 2 tipe: 🎉\n\n1️⃣ **Netflix 1P1U Private : Rp 35.000 / bln** (🟢 *Ready* - 1 Profile 1 User Bebas Screen Limit)\n2️⃣ **Netflix 1P2U Sharing : Rp 23.000 / bln** (🔴 *Kosong*)\n\nUntuk saat ini yang ready tipe **1P1U Private (35rb)** ya kak. Mau Sarah siapkan QRIS untuk yang Private? 😊✨`,
         attachImage: null,
