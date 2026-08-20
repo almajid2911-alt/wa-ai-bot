@@ -57,19 +57,50 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
     }
   }
 
-  // 2. INTENT KHUSUS: PEMESANAN APLIKASI PREMIUM TERTENTU (NETFLIX, CAPCUT, SPOTIFY, CHATGPT, DISNEY, CANVA, PRIME, VIU, DRAMA)
-  const isOrderingApp = (
+  // 2. INTENT KHUSUS: PEMESANAN / PILIH APLIKASI PREMIUM SPESIFIK
+  const hasSpecificApp = (
     text.includes('netflix') || text.includes('capcut') || text.includes('spotify') ||
     text.includes('chatgpt') || text.includes('chat gpt') || text.includes('disney') ||
     text.includes('canva') || text.includes('prime') || text.includes('viu') ||
     text.includes('drama') || text.includes('netshort') || text.includes('dramabox')
-  ) && (
-    text.includes('mau') || text.includes('order') || text.includes('pesan') || text.includes('beli') ||
-    text.includes('boleh') || text.includes('ambil') || text.includes('pilih') || text.includes('private') ||
-    text.includes('sharing') || text.includes('langganan')
   );
 
-  if (isOrderingApp) {
+  const isGeneralListQuestion = (
+    text.includes('apa saja') || text.includes('ada apa') || text.includes('list') ||
+    text.includes('katalog') || text.includes('daftar harga') || text.includes('daftar aplikasi') ||
+    text.includes('semua') || text.includes('menu') || text === 'apk premium' || text === 'aplikasi premium'
+  );
+
+  if (hasSpecificApp && !isGeneralListQuestion) {
+    // A. JIKA MEMILIH CAPCUT TAPI BELUM MENENTUKAN PRIVATE / SHARING
+    if (text.includes('capcut') && !text.includes('private') && !text.includes('sharing') && !text.includes('34') && !text.includes('24')) {
+      return {
+        replyText: `Siap Kak ${name}! Untuk **CapCut PRO**, kami menyediakan 2 tipe pilihan: 🎉\n\n1️⃣ **Private : Rp 34.000 / bln** (🟢 *Ready* - 1 Akun Khusus Kakak Sendiri)\n2️⃣ **Sharing : Rp 24.000 / bln** (🟢 *Ready* - Akun Bersama Hemat)\n\nKak ${name} mau ambil yang **Private (34rb)** atau **Sharing (24rb)**? Boleh infokan agar langsung Sarah kirimkan QRIS pembayarannya yaa 😊✨`,
+        attachImage: null,
+        copyFormTemplate: null,
+        leadData: null,
+        isConfirmedReady: false,
+        customerChoiceAdmin: false,
+        customerChoiceSelf: false,
+        updatedProduct: 'apk_premium'
+      };
+    }
+
+    // B. JIKA MEMILIH NETFLIX TAPI BELUM MENENTUKAN PRIVATE / SHARING
+    if (text.includes('netflix') && !text.includes('private') && !text.includes('sharing') && !text.includes('1p1u') && !text.includes('1p2u') && !text.includes('35') && !text.includes('23')) {
+      return {
+        replyText: `Siap Kak ${name}! Untuk **Netflix Premium**, kami menyediakan 2 tipe: 🎉\n\n1️⃣ **Netflix 1P1U Private : Rp 35.000 / bln** (🟢 *Ready* - 1 Profile 1 User Bebas Screen Limit)\n2️⃣ **Netflix 1P2U Sharing : Rp 23.000 / bln** (🔴 *Kosong*)\n\nUntuk saat ini yang ready tipe **1P1U Private (35rb)** ya kak. Mau Sarah siapkan QRIS untuk yang Private? 😊✨`,
+        attachImage: null,
+        copyFormTemplate: null,
+        leadData: null,
+        isConfirmedReady: false,
+        customerChoiceAdmin: false,
+        customerChoiceSelf: false,
+        updatedProduct: 'apk_premium'
+      };
+    }
+
+    // C. CEK STOK PRODUK SPESIFIK DI GOOGLE SHEETS
     const stockInfo = getAppStockStatus(text);
     if (stockInfo.isReady) {
       const priceText = stockInfo.price ? `seharga **${stockInfo.price}**` : '';
@@ -100,11 +131,11 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
   // 3. SWITCH CONTEXT KHUSUS: Tanya Katalog / List Harga APK Premium Umum (Tanpa Gambar, Text + Status Stok)
   const isAskingPremiumGeneral = (
     text.includes('apk premium') || text.includes('aplikasi premium') || text.includes('akun premium') ||
-    text.includes('jual akun') || text.includes('beli aplikasi') || text.includes('apk') ||
-    text.includes('netflix') || text.includes('capcut') || text.includes('spotify') ||
-    text.includes('canva') || text.includes('viu') || text.includes('disney') || text.includes('prime')
+    text.includes('jual akun') || text.includes('beli aplikasi') || text === 'apk' ||
+    (isGeneralListQuestion && (currentProduct === 'apk_premium' || text.includes('apk') || text.includes('aplikasi') || text.includes('premium')))
   );
-  if (isAskingPremiumGeneral && (currentProduct === 'apk_premium' || text.includes('premium') || text.includes('apk') || text.includes('aplikasi') || text.includes('jual') || text.includes('harga') || text.includes('list'))) {
+
+  if (isAskingPremiumGeneral) {
     const dynamicList = formatAppStockList();
     return {
       replyText: `Halo Kak ${name}! Kami menyediakan langganan **APK PREMIUM Resmi, Legal & Bergaransi** (Yuyun Premium Store) dengan harga hemat! 🎉✨\n\n${dynamicList}\n\n*(Jam Operasional Pemrosesan Akun: 08.00 – 20.00)*\n\nKak ${name} mau order akun aplikasi yang mana nih? Boleh infokan ke Sarah yaa agar langsung disiapkan QRIS pembayarannya 😊👍`,
