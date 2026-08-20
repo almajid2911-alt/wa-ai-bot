@@ -5,6 +5,11 @@ const app = express();
 let currentQR = null;
 let botStatus = 'Initializing...';
 let connectedNumber = null;
+let resetAuthHandler = null;
+
+export function setResetAuthHandler(handler) {
+  resetAuthHandler = handler;
+}
 
 export function updateQR(qrCode) {
   currentQR = qrCode;
@@ -36,6 +41,8 @@ export function startWebServer(port = 3000) {
           .status.init { background: #475569; color: white; }
           a.btn { display: inline-block; background: #2563eb; color: white; padding: 0.75rem 1.5rem; text-decoration: none; border-radius: 0.5rem; font-weight: bold; margin-top: 1rem; }
           a.btn:hover { background: #1d4ed8; }
+          a.btn-danger { background: #dc2626; margin-left: 0.5rem; }
+          a.btn-danger:hover { background: #b91c1c; }
         </style>
       </head>
       <body>
@@ -45,8 +52,31 @@ export function startWebServer(port = 3000) {
           <div class="status ${botStatus === 'Connected' ? 'connected' : (currentQR ? 'waiting' : 'init')}">
             ${botStatus} ${connectedNumber ? `(${connectedNumber})` : ''}
           </div>
-          ${botStatus !== 'Connected' ? `<br><a class="btn" href="/qr">Buka Halaman Scan QR</a>` : '<p style="color:#10b981;">✅ Bot sudah terhubung dan siap melayani chat WhatsApp!</p>'}
+          ${botStatus !== 'Connected' 
+            ? `<br><a class="btn" href="/qr">Buka Halaman Scan QR</a>` 
+            : `<p style="color:#10b981;">✅ Bot sudah terhubung dan siap melayani chat WhatsApp!</p><br><a class="btn btn-danger" href="/reset-auth" onclick="return confirm('Apakah Anda yakin ingin logout dan generate QR baru?')">🔄 Logout & Scan Ulang</a>`
+          }
         </div>
+      </body>
+      </html>
+    `);
+  });
+
+  app.get('/reset-auth', async (req, res) => {
+    if (resetAuthHandler) {
+      await resetAuthHandler();
+    }
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta http-equiv="refresh" content="2;url=/qr">
+        <title>Resetting Session...</title>
+        <style>body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; padding-top: 50px; }</style>
+      </head>
+      <body>
+        <h2>🔄 Sesi WhatsApp Lama Telah Dihapus!</h2>
+        <p>Sedang membuat QR Code baru... Mohon tunggu sebentar (Otomatis diarahkan ke halaman QR).</p>
       </body>
       </html>
     `);
@@ -63,6 +93,7 @@ export function startWebServer(port = 3000) {
           <style>
             body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; padding-top: 50px; }
             .box { background: #1e293b; display: inline-block; padding: 30px; border-radius: 12px; }
+            a.btn-danger { display: inline-block; background: #dc2626; color: white; padding: 0.75rem 1.5rem; text-decoration: none; border-radius: 0.5rem; font-weight: bold; margin-top: 1.5rem; }
           </style>
         </head>
         <body>
@@ -70,7 +101,8 @@ export function startWebServer(port = 3000) {
             <h2>✅ WhatsApp Sudah Terhubung!</h2>
             <p>Nomor: <b>${connectedNumber || 'Aktif'}</b></p>
             <p>Silakan kirim pesan WhatsApp ke nomor ini untuk mencoba chat dengan AI.</p>
-            <a href="/" style="color:#60a5fa;">Kembali ke Home</a>
+            <a href="/" style="color:#60a5fa;">Kembali ke Home</a><br>
+            <a class="btn-danger" href="/reset-auth" onclick="return confirm('Apakah Anda yakin ingin logout dan membuat QR baru?')">🔄 Logout & Buat QR Baru</a>
           </div>
         </body>
         </html>
@@ -84,11 +116,19 @@ export function startWebServer(port = 3000) {
         <head>
           <meta http-equiv="refresh" content="3">
           <title>Menunggu QR Code...</title>
-          <style>body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; padding-top: 50px; }</style>
+          <style>
+            body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; padding-top: 50px; }
+            .card { background: #1e293b; padding: 2rem; border-radius: 1rem; display: inline-block; max-width: 400px; }
+            a.btn { display: inline-block; background: #dc2626; color: white; padding: 0.6rem 1.2rem; text-decoration: none; border-radius: 0.5rem; font-weight: bold; margin-top: 1rem; }
+          </style>
         </head>
         <body>
-          <h2>⏳ Sedang Menyiapkan QR Code...</h2>
-          <p>Halaman ini akan auto-refresh dalam 3 detik.</p>
+          <div class="card">
+            <h2>⏳ Sedang Menyiapkan QR Code...</h2>
+            <p>Halaman ini akan auto-refresh dalam 3 detik.</p>
+            <br>
+            <a class="btn" href="/reset-auth">🔄 Paksa Hapus Sesi & Buat QR Baru</a>
+          </div>
         </body>
         </html>
       `);
@@ -108,6 +148,7 @@ export function startWebServer(port = 3000) {
             .card { background: #1e293b; padding: 2rem; border-radius: 1rem; text-align: center; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
             img { border-radius: 8px; background: white; padding: 8px; }
             p { font-size: 0.9rem; color: #94a3b8; }
+            a.btn-reset { display: inline-block; color: #f87171; text-decoration: none; font-size: 0.85rem; margin-top: 1rem; }
           </style>
         </head>
         <body>
@@ -116,6 +157,7 @@ export function startWebServer(port = 3000) {
             <p>1. Buka WhatsApp di HP Anda<br>2. Pilih <b>Perangkat Tertaut (Linked Devices)</b><br>3. Arahkan kamera ke QR di bawah:</p>
             <img src="${qrDataUrl}" alt="Scan QR Code" />
             <p><i>QR Code akan otomatis refresh jika kedaluwarsa.</i></p>
+            <a class="btn-reset" href="/reset-auth">🔄 QR bermasalah? Klik untuk Reset Sesi</a>
           </div>
         </body>
         </html>

@@ -10,7 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import qrcodeTerminal from 'qrcode-terminal';
-import { updateQR, updateStatus } from './server.js';
+import { updateQR, updateStatus, setResetAuthHandler } from './server.js';
 import { generateAIReply, resetAIConversation } from './ai.js';
 import { appendLeadToSheet, logUnansweredQuestion, refreshDynamicKnowledgeBackground } from './sheets.js';
 import { sendTelegramNotification, sendTelegramPhoto } from './telegram.js';
@@ -22,6 +22,22 @@ const __dirname = path.dirname(__filename);
 
 const logger = pino({ level: 'warn' });
 let sock = null;
+
+setResetAuthHandler(async () => {
+  console.log('🔄 Permintaan Reset Sesi dari Web Dashboard...');
+  const authDir = path.resolve(process.env.AUTH_DIR || 'auth_session');
+  try {
+    if (sock) {
+      sock.logout().catch(() => {});
+      sock.end();
+    }
+  } catch (e) {}
+  try {
+    fs.rmSync(authDir, { recursive: true, force: true });
+  } catch (e) {}
+  updateStatus('Menyiapkan QR Baru...');
+  setTimeout(() => connectToWhatsApp(), 1500);
+});
 
 // Memory Buffer untuk menampung data pendaftaran, lokasi, dan foto sebelum di-forward bersih ke Telegram
 const pendingLeadBuffer = new Map();
