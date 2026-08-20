@@ -345,7 +345,6 @@ export async function connectToWhatsApp() {
         console.log(`📩 Pesan Masuk dari [${senderName} (+${senderPhone})]: "${incomingText}"`);
         const currentProductCtx = userProductContext.get(remoteJid) || 'indihome';
         const hasLoc = userSavedLocations.has(remoteJid) || isLocation;
-        trackUserConsultation(remoteJid, senderName, currentProductCtx, hasLoc);
 
         // Simulasi pengetikan manusiawi (Anti-Ban)
         await sock.readMessages([msg.key]);
@@ -358,7 +357,7 @@ export async function connectToWhatsApp() {
           console.log(`📸 Foto dari ${senderName} disimpan di buffer sementara (${leadBuf.photos.length} foto tersimpan).`);
         }
 
-        // Dapatkan konteks produk & stage pengguna saat ini
+        // Dapatkan stage registrasi pengguna saat ini
         const currentStage = userRegistrationStage.get(remoteJid) || 'inquiry';
 
         // Generate AI Response
@@ -380,6 +379,17 @@ export async function connectToWhatsApp() {
           userProductContext.set(remoteJid, setProductContext);
         } else if (aiResult.updatedProduct) {
           userProductContext.set(remoteJid, aiResult.updatedProduct);
+        }
+
+        // HANYA track follow-up jika percakapan adalah calon prospek sales (bukan chat santai/pribadi/keluarga)
+        const isSalesInquiry = Boolean(
+          setProductContext || aiResult.updatedProduct || hasLoc || leadData ||
+          attachImage || copyFormTemplate ||
+          /wifi|paket|promo|pasang|indihome|indibiz|daftar|mbps|netflix|capcut|canva|spotify|disney|prime|viu|akun|apk/i.test(incomingText)
+        );
+        if (isSalesInquiry) {
+          const finalProduct = setProductContext || aiResult.updatedProduct || currentProductCtx;
+          trackUserConsultation(remoteJid, senderName, finalProduct, hasLoc, true);
         }
 
         // Dynamic Human Typing Delay: Pendek (1.2s) s/d Panjang (3.5s) agar terasa manusiawi
