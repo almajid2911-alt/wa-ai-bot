@@ -23,20 +23,38 @@ const __dirname = path.dirname(__filename);
 const logger = pino({ level: 'warn' });
 let sock = null;
 
+function deleteAuthDirContents(dir) {
+  if (!fs.existsSync(dir)) return;
+  try {
+    const entries = fs.readdirSync(dir);
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry);
+      try {
+        if (fs.lstatSync(fullPath).isDirectory()) {
+          deleteAuthDirContents(fullPath);
+          fs.rmdirSync(fullPath);
+        } else {
+          fs.unlinkSync(fullPath);
+        }
+      } catch (e) {}
+    }
+  } catch (err) {}
+}
+
 setResetAuthHandler(async () => {
   console.log('🔄 Permintaan Reset Sesi dari Web Dashboard...');
   const authDir = path.resolve(process.env.AUTH_DIR || 'auth_session');
   try {
     if (sock) {
-      sock.logout().catch(() => {});
+      try { await sock.logout(); } catch (e) {}
       sock.end();
+      sock = null;
     }
   } catch (e) {}
-  try {
-    fs.rmSync(authDir, { recursive: true, force: true });
-  } catch (e) {}
+  deleteAuthDirContents(authDir);
+  console.log('🧹 Seluruh file credentials di auth_session berhasil dikosongkan!');
   updateStatus('Menyiapkan QR Baru...');
-  setTimeout(() => connectToWhatsApp(), 1500);
+  setTimeout(() => connectToWhatsApp(), 1000);
 });
 
 // Memory Buffer untuk menampung data pendaftaran, lokasi, dan foto sebelum di-forward bersih ke Telegram
@@ -174,10 +192,8 @@ export async function connectToWhatsApp() {
 
       if (statusCode === DisconnectReason.loggedOut) {
         console.log('🔒 Sesi telah logout. Menghapus sesi lama...');
-        try {
-          fs.rmSync(authDir, { recursive: true, force: true });
-        } catch (e) {}
-        setTimeout(() => connectToWhatsApp(), 3000);
+        deleteAuthDirContents(authDir);
+        setTimeout(() => connectToWhatsApp(), 2000);
       } else if (shouldReconnect) {
         setTimeout(() => connectToWhatsApp(), 5000);
       }
