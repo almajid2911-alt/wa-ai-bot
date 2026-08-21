@@ -79,18 +79,26 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
     }
   }
 
-  // 1. INTENT: Lapor Gangguan / Komplain Kerusakan Internet
+  // 1. INTENT: Lapor Gangguan / Komplain Kerusakan Internet & Kendala Modem/Router
   const troublePatterns = [
     /gangguan/i,
+    /lapor/i,
     /lapor gangguan/i,
     /internet mati/i,
     /wifi mati/i,
     /los merah/i,
     /lampu merah/i,
+    /lampu pon/i,
+    /lampu los/i,
     /los berkedip/i,
+    /pon mati/i,
+    /pon kedip/i,
+    /pon merah/i,
     /tidak ada internet/i,
     /ga ada internet/i,
+    /gak ada internet/i,
     /gak ada koneksi/i,
+    /ga ada koneksi/i,
     /internet lemot/i,
     /wifi lemot/i,
     /kendala jaringan/i,
@@ -98,18 +106,35 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
     /komplain/i,
     /pengaduan/i,
     /tiket kendala/i,
-    /id pelanggan/i
+    /id pelanggan/i,
+    /modem/i,
+    /router/i,
+    /ont/i,
+    /kabel putus/i,
+    /mati total/i,
+    /restart modem/i,
+    /setting wifi/i,
+    /ganti password/i,
+    /ganti pass/i,
+    /kenapa merah/i,
+    /lampu router/i,
+    /lampu modem/i,
+    /internet gangguan/i,
+    /minta teknisi/i,
+    /butuh teknisi/i,
+    /perbaikan/i
   ];
   for (const pattern of troublePatterns) {
     if (pattern.test(text)) {
       return {
-        replyText: `Halo Kak ${name}! Mohon maaf sekali atas ketidaknyamanan dan kendala internet yang sedang dialami yaa 🙏\n\nNomor WhatsApp ini khusus melayani **Konsultasi & Pendaftaran Pasang Baru**, namun untuk penanganan perbaikan gangguan agar tim teknisi lapangan segera meluncur, berikut saluran pengaduan resmi paling cepat:\n\n1️⃣ **Call Center 188 (Paling Cepat & Rekomendasi Utama):**\nHubungi nomor **188** langsung dari ponsel Anda. Siapkan **Nomor ID Pelanggan (12 Digit)** agar tiket perbaikan langsung dibuatkan ke teknisi area rumah Kakak.\n\n2️⃣ **Aplikasi MyTelkomsel:**\nBuka aplikasi **MyTelkomsel** > masuk ke menu **Bantuan / IndiHome** > pilih **Lapor Gangguan / Buat Tiket Kendala**.\n\n3️⃣ **GraPARI Online / Kantor Terdekat:**\nAkses layanan GraPARI Online atau kunjungi GraPARI / Plasa Telkom terdekat.\n\nSemoga kendala jaringan Kak ${name} lekas normal kembali yaa! 🙏📶`,
+        replyText: `Halo Kak ${name}! Mohon maaf sekali atas ketidaknyamanan dan kendala jaringan/perangkat yang sedang dialami yaa 🙏\n\nNomor WhatsApp ini khusus melayani **Konsultasi & Pendaftaran Pasang Baru (PSB)**. Untuk penanganan perbaikan gangguan & pengecekan teknisi lapangan tercepat, silakan laporkan melalui jalur resmi:\n\n1️⃣ **Call Center 188 (Rekomendasi Utama & Paling Cepat):**\nHubungi nomor **188** langsung dari HP Kakak. Sebutkan **Nomor ID Pelanggan (12 Digit)** agar tiket perbaikan langsung otomatis diteruskan ke teknisi area rumah Kakak.\n\n2️⃣ **Aplikasi MyTelkomsel:**\nBuka aplikasi **MyTelkomsel** > masuk menu **Bantuan / IndiHome** > pilih **Lapor Gangguan / Cek Status Jaringan**.\n\n3️⃣ **GraPARI / Plasa Telkom Terdekat:**\nBisa langsung dibantu penanganan oleh Customer Service GraPARI terdekat.\n\nSemoga kendala internet Kak ${name} lekas normal dan lancar kembali yaa! 🙏📶`,
         attachImage: null,
         copyFormTemplate: null,
         leadData: null,
         isConfirmedReady: false,
         customerChoiceAdmin: false,
         customerChoiceSelf: false,
+        isTroubleComplaint: true,
         updatedProduct: currentProduct
       };
     }

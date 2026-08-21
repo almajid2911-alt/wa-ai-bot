@@ -228,7 +228,10 @@ export async function connectToWhatsApp() {
         if (isGroup || isBroadcast) continue;
 
         const senderName = msg.pushName || 'Kak';
-        const senderPhone = remoteJid.split('@')[0];
+        let rawPhone = remoteJid.split('@')[0];
+        if (rawPhone.includes(':')) rawPhone = rawPhone.split(':')[0];
+        const cleanPhoneDigits = rawPhone.replace(/[^0-9]/g, '');
+        const senderPhone = (cleanPhoneDigits.length >= 9) ? cleanPhoneDigits : '';
         const leadBuf = getOrCreateBuffer(remoteJid, senderName, senderPhone);
 
         const realMsg = unwrapMessage(msg.message);
@@ -244,7 +247,7 @@ export async function connectToWhatsApp() {
           incomingText = realMsg.extendedTextMessage.text;
         } else if (realMsg.imageMessage) {
           isImage = true;
-          incomingText = realMsg.imageMessage.caption || '[User mengirim foto berkas/KTP/rumah]';
+          incomingText = realMsg.imageMessage.caption || '[User mengirim sebuah foto/gambar]';
           try {
             imageBuffer = await downloadMediaMessage(msg, 'buffer', {});
           } catch (e) {
@@ -252,7 +255,7 @@ export async function connectToWhatsApp() {
           }
         } else if (realMsg.documentMessage && realMsg.documentMessage.mimetype?.startsWith('image/')) {
           isImage = true;
-          incomingText = realMsg.documentMessage.caption || '[User mengirim dokumen foto berkas]';
+          incomingText = realMsg.documentMessage.caption || '[User mengirim sebuah dokumen gambar]';
           try {
             imageBuffer = await downloadMediaMessage(msg, 'buffer', {});
           } catch (e) {
@@ -361,7 +364,7 @@ export async function connectToWhatsApp() {
         const currentStage = userRegistrationStage.get(remoteJid) || 'inquiry';
 
         // Generate AI Response
-        const aiResult = await generateAIReply(remoteJid, incomingText, senderName, currentProductCtx);
+        const aiResult = await generateAIReply(remoteJid, incomingText, senderName, currentProductCtx, currentStage);
         const {
           replyText,
           attachImage,
@@ -381,11 +384,13 @@ export async function connectToWhatsApp() {
           userProductContext.set(remoteJid, aiResult.updatedProduct);
         }
 
-        // HANYA track follow-up jika percakapan adalah calon prospek sales (bukan chat santai/pribadi/keluarga)
+        // HANYA track follow-up jika percakapan adalah calon prospek sales (bukan komplain gangguan / chat biasa)
         const isSalesInquiry = Boolean(
-          setProductContext || aiResult.updatedProduct || hasLoc || leadData ||
-          attachImage || copyFormTemplate ||
-          /wifi|paket|promo|pasang|indihome|indibiz|daftar|mbps|netflix|capcut|canva|spotify|disney|prime|viu|akun|apk/i.test(incomingText)
+          !aiResult.isTroubleComplaint && (
+            setProductContext || aiResult.updatedProduct || hasLoc || leadData ||
+            attachImage || copyFormTemplate ||
+            /wifi|paket|promo|pasang|indihome|indibiz|daftar|mbps|netflix|capcut|canva|spotify|disney|prime|viu|akun|apk/i.test(incomingText)
+          )
         );
         if (isSalesInquiry) {
           const finalProduct = setProductContext || aiResult.updatedProduct || currentProductCtx;
@@ -402,7 +407,10 @@ export async function connectToWhatsApp() {
         if (leadData) {
           if (leadData.name) leadBuf.name = leadData.name;
           if (leadData.email) leadBuf.email = leadData.email;
-          if (leadData.phone) leadBuf.phone = leadData.phone;
+          if (leadData.phone) {
+            const cleanP = String(leadData.phone).replace(/[^0-9]/g, '');
+            if (cleanP.length >= 9) leadBuf.phone = cleanP;
+          }
           if (leadData.package) leadBuf.package = leadData.package;
           userRegistrationStage.set(remoteJid, 'awaiting_standby');
         }
@@ -412,11 +420,16 @@ export async function connectToWhatsApp() {
           leadBuf.coordinates = userSavedLocations.get(remoteJid);
         }
 
-        // 1. KETIKA PELANGGAN MEMBALAS "SIAP" ➔ TAWARKAN 2 OPSI & CATAT STAGE
-        if (isConfirmedReady) {
+        // 1. KETIKA PELANGGAN MEMBALAS "SIAP" SETELAH MENGISI FORMULIR
+        // 🔒 Guard Ketat: Hanya picu pendaftaran jika BUKAN komplain dan data form valid
+        const hasValidLeadData = (leadBuf.package && leadBuf.package !== '-') || (leadBuf.email && leadBuf.email !== '-') || currentStage === 'awaiting_standby';
+
+        if (isConfirmedReady && hasValidLeadData && !aiResult.isTroubleComplaint) {
           markUserRegistered(remoteJid);
           userRegistrationStage.set(remoteJid, 'options_offered');
-          leadBuf.phone = leadBuf.phone || senderPhone;
+          if (!leadBuf.phone || leadBuf.phone.length < 9) {
+            leadBuf.phone = senderPhone;
+          }
           if (userSavedLocations.has(remoteJid)) {
             leadBuf.coordinates = userSavedLocations.get(remoteJid);
           }
@@ -425,11 +438,15 @@ export async function connectToWhatsApp() {
           await appendLeadToSheet(leadBuf);
 
           // B. Kirim Notifikasi Rangkuman Lengkap ke Telegram Sales
+          const cleanPhone = (leadBuf.phone || senderPhone || '').replace(/[^0-9]/g, '');
+          const waLink = cleanPhone ? `https://wa.me/${cleanPhone}` : '#';
+          const waDisplay = cleanPhone ? `+${cleanPhone}` : 'Tidak terdeteksi';
+
           await sendTelegramNotification(
             `🎉 <b>PENDAFTARAN LENGKAP MASUK!</b> 🎉\n\n` +
             `👤 <b>Nama Pelanggan:</b> ${leadBuf.name}\n` +
             `✉️ <b>Email:</b> ${leadBuf.email}\n` +
-            `📱 <b>No HP / WA:</b> <a href="https://wa.me/${leadBuf.phone}">+${leadBuf.phone}</a>\n` +
+            `📱 <b>No HP / WA:</b> <a href="${waLink}">${waDisplay}</a>\n` +
             `📶 <b>Paket:</b> ${leadBuf.package}\n` +
             `📍 <b>Titik Shareloc / ODP:</b> ${leadBuf.coordinates}\n` +
             `📸 <b>Jumlah Foto Berkas:</b> ${leadBuf.photos.length} Foto\n` +

@@ -127,7 +127,9 @@ export function parseFormDirectly(text) {
   if (rawName.toLowerCase().startsWith('email:')) rawName = '';
 
   const email = emailMatch ? emailMatch[1].trim() : '';
-  const phone = phoneMatch ? phoneMatch[1].trim() : '';
+  let phone = phoneMatch ? phoneMatch[1].trim() : '';
+  phone = phone.replace(/[^0-9]/g, ''); // Pastikan nomor HP murni angka
+
   const pkg = packageMatch ? packageMatch[1].trim() : '';
 
   if (email || phone || pkg) {
@@ -141,7 +143,7 @@ export function parseFormDirectly(text) {
   return null;
 }
 
-export async function generateAIReply(remoteJid, userMessage, senderName = 'Kak', productContext = 'indihome') {
+export async function generateAIReply(remoteJid, userMessage, senderName = 'Kak', productContext = 'indihome', currentStage = 'inquiry') {
   const currentProd = (typeof productContext === 'object' ? productContext.product : productContext) || 'indihome';
   const openaiApiKey = process.env.OPENAI_API_KEY;
   const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -166,6 +168,7 @@ export async function generateAIReply(remoteJid, userMessage, senderName = 'Kak'
   }
 
   // 2. FAST-PATH RULE 2: DETEKSI JAWABAN "SIAP / STANDBY" (0 TOKEN)
+  // 🔒 HANYA BOLEH AKTIF JIKA SEBELUMNYA USER MEMANG SUDAH DI TAHAP AWAITING_STANDBY (SETELAH KIRIM FORMULIR)
   const trimmed = (userMessage || '').trim().toLowerCase();
   const isIndibiz = currentProd === 'indibiz';
   const regLink = isIndibiz
@@ -173,8 +176,9 @@ export async function generateAIReply(remoteJid, userMessage, senderName = 'Kak'
     : 'https://www.telkomsel.com/fmc-indihome/sobat-indihome?refcode=RT20941067';
   const brandName = isIndibiz ? 'IndiBiz by Telkom Indonesia' : 'IndiHome Telkomsel';
 
-  if (trimmed === 'siap' || trimmed === 'stand by' || trimmed === 'standby' || trimmed === 'sudah siap' || trimmed === 'oke siap' || trimmed === 'siap kak' || trimmed === 'siap min') {
-    console.log(`⚡ Fast-Path Respon Jawaban Siap [Konteks: ${currentProd}] (0 Token)`);
+  const isSayingReady = (trimmed === 'siap' || trimmed === 'stand by' || trimmed === 'standby' || trimmed === 'sudah siap' || trimmed === 'oke siap' || trimmed === 'siap kak' || trimmed === 'siap min');
+  if (isSayingReady && currentStage === 'awaiting_standby') {
+    console.log(`⚡ Fast-Path Respon Jawaban Siap Pasca Form [Konteks: ${currentProd}] (0 Token)`);
     return {
       replyText: `Siap, terima kasih banyak Kak ${senderName}! Mohon ditunggu sebentar yaa kak 😊\n\nUntuk proses pendaftaran ${brandName}, Kak ${senderName} bisa memilih 2 cara berikut:\n\n1️⃣ **Dibantu Input oleh Admin Sales Kami (Jam Operasional 10.00 - 22.00):**\nAdmin sales resmi kami akan langsung mengambil alih chat ini untuk memproseskan pendaftaran Kakak ke sistem (mohon tetap stand by di HP sebentar ya kak).\n\n2️⃣ **Daftar Mandiri Langsung via Link Resmi:**\nKakak bisa langsung input pendaftaran mandiri secara instan melalui link resmi berikut:\n👉 ${regLink}\n\nKak ${senderName} mau dibantu proses oleh Admin (ketik **1**) atau mau daftar mandiri via link (ketik **2**)? 😊`,
       attachImage: null,
@@ -185,7 +189,6 @@ export async function generateAIReply(remoteJid, userMessage, senderName = 'Kak'
       customerChoiceSelf: false,
       unansweredQuestion: null,
       requestHuman: null,
-      updatedProduct: currentProd
     };
   }
 
