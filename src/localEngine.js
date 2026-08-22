@@ -79,64 +79,93 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
     }
   }
 
-  // 1. INTENT: Lapor Gangguan / Komplain Kerusakan Internet & Kendala Modem/Router
+  // 1. INTENT: Tanya Kompatibilitas Perangkat / Smart TV / Nonton di TV (APK Premium)
+  const isAskingDeviceSupport = (
+    currentProduct === 'apk_premium' ||
+    text.includes('netflix') || text.includes('capcut') || text.includes('apk') ||
+    text.includes('disney') || text.includes('viu') || text.includes('prime')
+  ) && (
+    text.includes('tv') || text.includes('smart tv') || text.includes('smarttv') ||
+    text.includes('laptop') || text.includes('hp') || text.includes('tonton') ||
+    text.includes('nonton') || text.includes('layar') || text.includes('lg') ||
+    text.includes('samsung') || text.includes('tab') || text.includes('pc')
+  );
+
+  if (isAskingDeviceSupport) {
+    return {
+      replyText: `Bisa banget yaa Kak ${name}! 📺✨\n\nAkun **Netflix 1P1U Private (Rp 35.000 / bln)** ini support 100% dan sangat lancar untuk langsung ditonton di **Smart TV (LG, Samsung, Android TV, Google TV, dll)**, Laptop, Tablet, maupun HP dengan kualitas **Ultra HD 4K jernih**!\n\n*(Bebas screen limit & bebas tabrakan user karena 1 Profile 1 User khusus milik Kakak)* 👍\n\nMau Sarah siapkan QRIS pembayarannya sekarang agar akunnya bisa langsung dipakai nonton di Smart TV? 😊`,
+      attachImage: 'qris-yuyun.png',
+      copyFormTemplate: null,
+      leadData: null,
+      isConfirmedReady: false,
+      customerChoiceAdmin: false,
+      customerChoiceSelf: false,
+      updatedProduct: 'apk_premium'
+    };
+  }
+
+  // 1.1 INTENT: Lapor Gangguan / Komplain Kerusakan Internet & Kendala Modem/Router
+  // 🔒 Guard Ketat: HANYA BOLEH AKTIF JIKA BUKAN KONTEKS APK PREMIUM
+  const isDiscussingStreamingOrApp = currentProduct === 'apk_premium' ||
+    text.includes('netflix') || text.includes('capcut') || text.includes('spotify') ||
+    text.includes('canva') || text.includes('nonton') || text.includes('tonton');
+
   const troublePatterns = [
-    /gangguan/i,
-    /lapor/i,
-    /lapor gangguan/i,
-    /internet mati/i,
-    /wifi mati/i,
-    /los merah/i,
-    /lampu merah/i,
-    /lampu pon/i,
-    /lampu los/i,
-    /los berkedip/i,
-    /pon mati/i,
-    /pon kedip/i,
-    /pon merah/i,
-    /tidak ada internet/i,
-    /ga ada internet/i,
-    /gak ada internet/i,
-    /gak ada koneksi/i,
-    /ga ada koneksi/i,
-    /internet lemot/i,
-    /wifi lemot/i,
-    /kendala jaringan/i,
-    /rusak/i,
-    /komplain/i,
-    /pengaduan/i,
-    /tiket kendala/i,
-    /id pelanggan/i,
-    /modem/i,
-    /router/i,
-    /ont/i,
-    /kabel putus/i,
-    /mati total/i,
-    /restart modem/i,
-    /setting wifi/i,
-    /ganti password/i,
-    /ganti pass/i,
-    /kenapa merah/i,
-    /lampu router/i,
-    /lampu modem/i,
-    /internet gangguan/i,
-    /minta teknisi/i,
-    /butuh teknisi/i,
-    /perbaikan/i
+    /\bgangguan\b/i,
+    /\blapor gangguan\b/i,
+    /\binternet mati\b/i,
+    /\bwifi mati\b/i,
+    /\blos merah\b/i,
+    /\blampu merah\b/i,
+    /\blampu pon\b/i,
+    /\blampu los\b/i,
+    /\blos berkedip\b/i,
+    /\bpon mati\b/i,
+    /\bpon kedip\b/i,
+    /\bpon merah\b/i,
+    /\btidak ada internet\b/i,
+    /\bga ada internet\b/i,
+    /\bgak ada internet\b/i,
+    /\bgak ada koneksi\b/i,
+    /\bga ada koneksi\b/i,
+    /\binternet lemot\b/i,
+    /\bwifi lemot\b/i,
+    /\bkendala jaringan\b/i,
+    /\bkendala wifi\b/i,
+    /\brusak\b/i,
+    /\bkomplain\b/i,
+    /\bpengaduan\b/i,
+    /\btiket kendala\b/i,
+    /\bperangkat ont\b/i,
+    /\bont rusak\b/i,
+    /\bkabel putus\b/i,
+    /\bmati total\b/i,
+    /\brestart modem\b/i,
+    /\bsetting wifi\b/i,
+    /\bkenapa merah\b/i,
+    /\blampu router\b/i,
+    /\blampu modem\b/i,
+    /\binternet gangguan\b/i,
+    /\bminta teknisi\b/i,
+    /\bbutuh teknisi\b/i,
+    /\bperbaikan jaringan\b/i
   ];
-  for (const pattern of troublePatterns) {
-    if (pattern.test(text)) {
-      return {
-        replyText: `Halo Kak ${name}! Mohon maaf sekali atas ketidaknyamanan dan kendala jaringan/perangkat yang sedang dialami yaa 🙏\n\nNomor WhatsApp ini khusus melayani **Konsultasi & Pendaftaran Pasang Baru (PSB)**. Untuk penanganan perbaikan gangguan & pengecekan teknisi lapangan tercepat, silakan laporkan melalui jalur resmi:\n\n1️⃣ **Call Center 188 (Rekomendasi Utama & Paling Cepat):**\nHubungi nomor **188** langsung dari HP Kakak. Sebutkan **Nomor ID Pelanggan (12 Digit)** agar tiket perbaikan langsung otomatis diteruskan ke teknisi area rumah Kakak.\n\n2️⃣ **Aplikasi MyTelkomsel:**\nBuka aplikasi **MyTelkomsel** > masuk menu **Bantuan / IndiHome** > pilih **Lapor Gangguan / Cek Status Jaringan**.\n\n3️⃣ **GraPARI / Plasa Telkom Terdekat:**\nBisa langsung dibantu penanganan oleh Customer Service GraPARI terdekat.\n\nSemoga kendala internet Kak ${name} lekas normal dan lancar kembali yaa! 🙏📶`,
-        attachImage: null,
-        copyFormTemplate: null,
-        leadData: null,
-        isConfirmedReady: false,
-        customerChoiceAdmin: false,
-        customerChoiceSelf: false,
-        isTroubleComplaint: true,
-        updatedProduct: currentProduct
-      };
+
+  if (!isDiscussingStreamingOrApp) {
+    for (const pattern of troublePatterns) {
+      if (pattern.test(text)) {
+        return {
+          replyText: `Halo Kak ${name}! Mohon maaf sekali atas ketidaknyamanan dan kendala jaringan/perangkat yang sedang dialami yaa 🙏\n\nNomor WhatsApp ini khusus melayani **Konsultasi & Pendaftaran Pasang Baru (PSB)**. Untuk penanganan perbaikan gangguan & pengecekan teknisi lapangan tercepat, silakan laporkan melalui jalur resmi:\n\n1️⃣ **Call Center 188 (Rekomendasi Utama & Paling Cepat):**\nHubungi nomor **188** langsung dari HP Kakak. Sebutkan **Nomor ID Pelanggan (12 Digit)** agar tiket perbaikan langsung otomatis diteruskan ke teknisi area rumah Kakak.\n\n2️⃣ **Aplikasi MyTelkomsel:**\nBuka aplikasi **MyTelkomsel** > masuk menu **Bantuan / IndiHome** > pilih **Lapor Gangguan / Cek Status Jaringan**.\n\n3️⃣ **GraPARI / Plasa Telkom Terdekat:**\nBisa langsung dibantu penanganan oleh Customer Service GraPARI terdekat.\n\nSemoga kendala internet Kak ${name} lekas normal dan lancar kembali yaa! 🙏📶`,
+          attachImage: null,
+          copyFormTemplate: null,
+          leadData: null,
+          isConfirmedReady: false,
+          customerChoiceAdmin: false,
+          customerChoiceSelf: false,
+          isTroubleComplaint: true,
+          updatedProduct: currentProduct
+        };
+      }
     }
   }
 
@@ -350,9 +379,24 @@ export function matchLocalIntent(userMessage, senderName = 'Kak', remoteJid = ''
     };
   }
 
-  // 6. INTENT: Pelanggan Mau Daftar / Minta Form Tanpa Sebut Kecepatan
-  const isAskingToRegister = /^(mau|mau kak|mau daftar|mau ambil|saya mau|tertarik|minat|boleh|boleh kak|cara daftar|cara daftarnya gimana|gimana daftarnya|minta form|form pendaftaran|format form|form)$/i.test(text);
+  // 6. INTENT: Pelanggan Mau Daftar / Cara Beli / Minta Form
+  const isAskingToRegister = /^(mau|mau kak|mau daftar|mau ambil|saya mau|tertarik|minat|boleh|boleh kak|cara daftar|cara daftarnya gimana|gimana daftarnya|minta form|form pendaftaran|format form|form|belum tau cara daftar ny|belum tau cara daftarnya|belum tau caranya|gimana caranya|cara pesannya gimana|cara beli|cara belinya)$/i.test(text) ||
+    (text.includes('cara daftar') || text.includes('gimana daftar') || text.includes('cara pesan') || text.includes('cara beli') || text.includes('cara order'));
+
   if (isAskingToRegister) {
+    if (currentProduct === 'apk_premium' || text.includes('netflix') || text.includes('capcut') || text.includes('spotify') || text.includes('canva') || text.includes('apk')) {
+      return {
+        replyText: `Caranya sangat mudah & instan yaa Kak ${name}! 🎉\n\n1️⃣ **Lakukan Pembayaran:** Scan QRIS resmi kami (Foto QRIS terlampir di atas).\n*(Contoh: Rp 35.000 untuk Netflix 1P1U Private)*\n2️⃣ **Konfirmasi:** Balas ketik **#sudahbayar** di sini setelah transfer.\n3️⃣ **Terima Akun:** Tim kami akan langsung mengirimkan email & password akun resmi yang siap Kakak login dan langsung tonton di Smart TV / HP! 📺✨\n\nMau Sarah kirimkan QRIS pembayarannya sekarang? 😊`,
+        attachImage: 'qris-yuyun.png',
+        copyFormTemplate: null,
+        leadData: null,
+        isConfirmedReady: false,
+        customerChoiceAdmin: false,
+        customerChoiceSelf: false,
+        updatedProduct: 'apk_premium'
+      };
+    }
+
     if (currentProduct === 'indibiz') {
       return {
         replyText: `Siap dengan senang hati, Kak ${name}! 😊 Untuk proses pendaftaran promo resmi IndiBiz tempat usaha/kantor, mohon bantu lengkapi format formulir di bawah ini ya kak:\n\nSerta mohon kirimkan berkas foto:\n🏢 **Foto Bangunan / Tempat Usaha Tampak Depan**\n🪪 **Foto KTP Penanggung Jawab**\n📄 **Foto NPWP** (untuk data verifikasi bisnis resmi)\n\nDitunggu kelengkapan datanya yaa Kak ${name} agar langsung kita proseskan ke tim IndiBiz! 🙏🏢`,
