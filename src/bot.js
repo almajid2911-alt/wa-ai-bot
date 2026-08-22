@@ -420,6 +420,25 @@ export async function connectToWhatsApp() {
           leadBuf.coordinates = userSavedLocations.get(remoteJid);
         }
 
+        // 0. KETIKA PELANGGAN MEMBALAS KONFIRMASI GANGGUAN / CEK LOS LAPANGAN
+        if (aiResult.troubleData) {
+          const tData = aiResult.troubleData;
+          const phone = tData.phone || senderPhone;
+          const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+          const waLink = cleanPhone ? `https://wa.me/${cleanPhone}` : '#';
+          const waDisplay = cleanPhone ? `+${cleanPhone}` : 'Tidak terdeteksi';
+
+          await sendTelegramNotification(
+            `🚨 <b>LAPORAN KENDALA GANGGUAN (LOS / PELANGGAN LAMA)</b> 🚨\n\n` +
+            `👤 <b>Nama Pelanggan:</b> ${senderName}\n` +
+            `📱 <b>No HP / WA:</b> <a href="${waLink}">${waDisplay}</a>\n` +
+            `🌐 <b>No Layanan:</b> ${tData.noLayanan || '-'}\n` +
+            `📍 <b>Alamat Lokasi:</b> ${tData.alamat || '-'}\n` +
+            `📝 <b>Keterangan:</b> Balasan Konfirmasi Cek Gangguan / LOS Lapangan\n\n` +
+            `💡 <i>Laporan ini dipisahkan dari Prospek Pasang Baru agar tidak tertukar. Tim Dispatcher/Teknisi silakan cek status ODP & jadwalkan tiket.</i>`
+          );
+        }
+
         // 1. KETIKA PELANGGAN MEMBALAS "SIAP" SETELAH MENGISI FORMULIR
         // 🔒 Guard Ketat: Hanya picu pendaftaran jika BUKAN komplain dan data form valid
         const hasValidLeadData = (leadBuf.package && leadBuf.package !== '-') || (leadBuf.email && leadBuf.email !== '-') || currentStage === 'awaiting_standby';

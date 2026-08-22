@@ -85,8 +85,11 @@ ATURAN ALUR PENDAFTARAN & SOP SALES:
      2. Daftar Mandiri Langsung via Link Resmi (24 Jam Aktif Tanpa Antre).
    - **Tahap 6 (Pilihan Opsi):** Jika pelanggan pilih opsi 2 (mandiri), layani dengan ramah dan pandu pengisian link resminya.
 
-6. **LAPOR GANGGUAN / KOMPLAIN:**
-   - Edukasi dengan empati: Saluran perbaikan teknisi paling cepat adalah Call Center 188 (siapkan ID Pelanggan) atau aplikasi MyTelkomsel menu Bantuan > IndiHome.
+6. **LAPOR GANGGUAN / KOMPLAIN / CEK LOS LAPANGAN (PELANGGAN LAMA):**
+   - JIKA pelanggan menginformasikan internet mati, lampu LOS merah, kabel putus, nomor layanan (1622... / 172...), atau membalas format alamat & no HP perbaikan:
+     - INI BUKAN PENDAFTARAN PASANG BARU (Bukan Prospek Sales).
+     - JANGAN PERNAH meminta foto KTP/foto rumah, dan JANGAN PERNAH mengarahkan daftar link paket baru!
+     - Berikan respon empati bahwa data sudah diteruskan ke Tim Teknisi Lapangan, dan wajib set "isTroubleComplaint": true dalam JSON output.
 
 FORMAT OUTPUT JSON WAJIB:
 Kamu HARUS SELALU mengembalikan output dalam format JSON murni:
@@ -100,6 +103,7 @@ Kamu HARUS SELALU mengembalikan output dalam format JSON murni:
     "phone": "Nomor HP jika terisi",
     "package": "Nama paket jika terisi"
   } | null,
+  "isTroubleComplaint": true | false,
   "isConfirmedReady": true | false,
   "customerChoiceAdmin": true | false,
   "customerChoiceSelf": true | false,
@@ -108,13 +112,61 @@ Kamu HARUS SELALU mengembalikan output dalam format JSON murni:
 `;
 }
 
+// Helper untuk mendeteksi balasan konfirmasi gangguan / cek fisik LOS (Pelanggan Lama)
+export function parseTroubleReportDirectly(text) {
+  if (!text) return null;
+  const lower = text.toLowerCase();
+
+  const hasAlamat = /alamat\s*:\s*([^\n\r]+)/i.test(text);
+  const hasPhone = /(?:no\s*hp|nomor\s*hp|hp|wa)\s*(?:yg\s*bisa\s*dihubungi)?\s*:\s*([^\n\r]+)/i.test(text);
+  const hasLayanan = /(?:no\s*layanan|layanan|nomor\s*indihome|id\s*pelanggan)\s*:\s*([^\n\r]+)/i.test(text) || /\b(1[67]\d{10,12})\b/.test(text);
+  const hasTroubleWords = /gangguan|los|lampu merah|merah|los merah|mati|putus|rusak|kendala|perbaikan|teknisi/i.test(lower);
+
+  // 1. Format balasan blast broadcast konfirmasi gangguan (alamat + no hp)
+  if (hasAlamat && hasPhone && !lower.includes('paket') && !lower.includes('daftar') && !lower.includes('pasang baru')) {
+    const alamatMatch = text.match(/alamat\s*:\s*([^\n\r]+)/i);
+    const phoneMatch = text.match(/(?:no\s*hp|nomor\s*hp|hp|wa)\s*(?:yg\s*bisa\s*dihubungi)?\s*:\s*([^\n\r]+)/i);
+    const layananMatch = text.match(/(?:no\s*layanan|layanan|nomor\s*indihome|id\s*pelanggan)\s*:\s*([^\n\r]+)/i) || text.match(/\b(1[67]\d{10,12})\b/);
+
+    const alamat = alamatMatch ? alamatMatch[1].trim() : '-';
+    let phone = phoneMatch ? phoneMatch[1].trim().replace(/[^0-9]/g, '') : '';
+    const noLayanan = layananMatch ? (layananMatch[1] || layananMatch[0]).trim() : '-';
+
+    return {
+      alamat,
+      phone,
+      noLayanan,
+      isTroubleConfirmation: true
+    };
+  }
+
+  // 2. Pesan spesifik menyebutkan kendala LOS / nomor layanan
+  if (hasTroubleWords && (hasLayanan || text.length > 20) && !lower.includes('paket') && !lower.includes('biaya pasang')) {
+    return {
+      alamat: text,
+      phone: '',
+      noLayanan: hasLayanan ? text.match(/\b(1[67]\d{10,12})\b/)?.[1] || '-' : '-',
+      isTroubleConfirmation: true
+    };
+  }
+
+  return null;
+}
+
 // Fast regex helper to extract 4 fields from user message
 export function parseFormDirectly(text) {
   if (!text) return null;
   const lower = text.toLowerCase();
   
-  // Minimal harus ada kata kunci form
-  if (!lower.includes('nama') && !lower.includes('paket') && !lower.includes('hp') && !lower.includes('wa') && !lower.includes('email')) {
+  // Jika ini adalah balasan form gangguan / alamat & no HP perbaikan tanpa paket sales, jangan anggap sebagai form pendaftaran sales
+  const isTroubleContext = /gangguan|los|lampu merah|perbaikan|kendala|rusak|lapor|no layanan|nomor layanan/i.test(lower) ||
+    (lower.includes('alamat') && lower.includes('hp') && !lower.includes('paket') && !lower.includes('daftar') && !lower.includes('pasang'));
+  if (isTroubleContext) {
+    return null;
+  }
+
+  // Minimal harus ada kata kunci form sales pendaftaran
+  if (!lower.includes('paket') && !lower.includes('pemasangan') && !lower.includes('pasang') && !lower.includes('daftar') && !(lower.includes('nama') && lower.includes('email'))) {
     return null;
   }
 
@@ -132,12 +184,13 @@ export function parseFormDirectly(text) {
 
   const pkg = packageMatch ? packageMatch[1].trim() : '';
 
-  if (email || phone || pkg) {
+  // Form sales pendaftaran baru WAJIB memiliki paket ATAU (nama + email/phone + intent pendaftaran)
+  if (pkg || (rawName && email && phone)) {
     return {
       name: rawName,
       email: email,
       phone: phone,
-      package: pkg
+      package: pkg || 'IndiHome (Belum Pilih Kecepatan)'
     };
   }
   return null;
@@ -147,6 +200,26 @@ export async function generateAIReply(remoteJid, userMessage, senderName = 'Kak'
   const currentProd = (typeof productContext === 'object' ? productContext.product : productContext) || 'indihome';
   const openaiApiKey = process.env.OPENAI_API_KEY;
   const geminiApiKey = process.env.GEMINI_API_KEY;
+
+  // 0. FAST-PATH RULE 0: DETEKSI BALASAN FORM GANGGUAN / CEK LOS LAPANGAN (0 TOKEN)
+  const troubleReport = parseTroubleReportDirectly(userMessage);
+  if (troubleReport && troubleReport.isTroubleConfirmation) {
+    console.log('⚡ Direct Trouble Report Parser Sukses (0 Token):', troubleReport);
+    return {
+      replyText: `Terima kasih banyak atas konfirmasinya, Kak ${senderName}! 🙏\n\nData lokasi & nomor kontak Kakak sudah kami terima dengan baik dan **langsung kami teruskan ke Tim Teknisi Lapangan** untuk dijadwalkan pengecekan/perbaikan fisik (LOS).\n\n💡 *Catatan:* Mohon pastikan kabel optik tidak tertekuk dan perangkat modem tetap dalam kondisi menyala ya kak agar pengecekan sistem berjalan lancar. Terima kasih atas kerja samanya! 🔧📶`,
+      attachImage: null,
+      copyFormTemplate: null,
+      leadData: null,
+      isConfirmedReady: false,
+      customerChoiceAdmin: false,
+      customerChoiceSelf: false,
+      isTroubleComplaint: true,
+      troubleData: troubleReport,
+      unansweredQuestion: null,
+      requestHuman: null,
+      updatedProduct: currentProd
+    };
+  }
 
   // 1. FAST-PATH RULE 1: DETEKSI FORMULIR PENDAFTARAN (0 TOKEN)
   const directLead = parseFormDirectly(userMessage);
